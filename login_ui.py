@@ -4,6 +4,7 @@ from msal import ConfidentialClientApplication
 
 
 def initialize_app():
+    # Novo comentário "
     client_id = st.secrets["CLIENT_ID"]
     tenant_id = st.secrets["TENANT_ID"]
     client_secret = st.secrets["CLIENT_SECRET"]
