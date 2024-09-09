@@ -66,17 +66,30 @@ def authentication_process(app, user_email, user_password):
 def login_ui():
     st.title("Autenticação Microsoft")
 
-    # Campos para email e senha
-    user_email = st.text_input("Azure Email", placeholder="Digite seu email Azure")
-    user_password = st.text_input("Senha", placeholder="Digite sua senha Azure", type="password")
+    # Inicializar as chaves do session_state, se ainda não existirem
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
+    if "display_name" not in st.session_state:
+        st.session_state["display_name"] = ""
 
-    if st.button("Login com Azure"):
-        if not user_email or not user_password:
-            st.warning("Por favor, insira o email e a senha.")
-        else:
-            app = initialize_app()
-            if app:
-                authentication_process(app, user_email, user_password)
+    # Se o usuário não estiver autenticado, exibir o formulário de login
+    if not st.session_state["authenticated"]:
+        user_email = st.text_input("Azure Email", placeholder="Digite seu email Azure", key="email_input")
+        user_password = st.text_input("Senha", placeholder="Digite sua senha Azure", type="password", key="password_input")
+
+        if st.button("Login com Azure", key="login_button"):
+            if not user_email or not user_password:
+                st.warning("Por favor, insira o email e a senha.")
+            else:
+                app = initialize_app()
+                if app:
+                    user_data = authentication_process(app, user_email, user_password)
+                    if user_data:
+                        st.session_state["authenticated"] = True
+                        st.session_state["display_name"] = user_data.get("displayName")
+                        st.experimental_rerun()  # Reinicializa a aplicação para refletir o estado atualizado
+    else:
+        st.write(f"Bem-vindo, {st.session_state['display_name']}")
 
 
 # Chamar a interface de login
