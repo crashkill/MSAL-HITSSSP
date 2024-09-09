@@ -4,46 +4,80 @@ from msal import ConfidentialClientApplication
 
 
 def initialize_app():
-    # Novo comentário "
-    client_id = st.secrets["CLIENT_ID"]
-    tenant_id = st.secrets["TENANT_ID"]
-    client_secret = st.secrets["CLIENT_SECRET"]
+    client_id = st.secrets.get("CLIENT_ID")
+    tenant_id = st.secrets.get("TENANT_ID")
+    client_secret = st.secrets.get("CLIENT_SECRET")
+    if not client_id or not tenant_id or not client_secret:
+        st.error("Configurações de autenticação não encontradas. Verifique os secrets.")
+        return None
     authority_url = f"https://login.microsoftonline.com/{tenant_id}"
     return ConfidentialClientApplication(client_id, authority=authority_url, client_credential=client_secret)
 
 
 def acquire_access_token(app, code, scopes, redirect_uri):
+    if not app or not code:
+        st.error("Aplicativo MSAL ou código de autenticação não disponível.")
+        return None
     return app.acquire_token_by_authorization_code(code, scopes=scopes, redirect_uri=redirect_uri)
 
 
 def fetch_user_data(access_token):
+    if not access_token:
+        st.error("Token de acesso não encontrado.")
+        return None
     headers = {"Authorization": f"Bearer {access_token}"}
     graph_api_endpoint = "https://graph.microsoft.com/v1.0/me"
     response = requests.get(graph_api_endpoint, headers=headers)
+    if response.status_code != 200:
+        st.error(f"Erro ao buscar dados do usuário: {response.text}")
+        return None
     return response.json()
 
 
-def authentication_process(app):
+def authentication_process(app, user_email, user_password):
     scopes = ["User.Read"]
-    redirect_uri = st.secrets["REDIRECT_URI"]
+    redirect_uri = st.secrets.get("REDIRECT_URI")
+    
+    if not redirect_uri:
+        st.error("Redirect URI não configurado nos secrets.")
+        return
+    
     auth_url = app.get_authorization_request_url(scopes, redirect_uri=redirect_uri)
-    st.markdown(f"Please go to [this URL]({auth_url}) and authorize the app.")
-    if st.query_params.get("code"):
-        st.session_state["auth_code"] = st.query_params.get("code")
-        token_result = acquire_access_token(app, st.session_state.auth_code, scopes, redirect_uri)
-        if "access_token" in token_result:
+
+    # Obtém os parâmetros da URL usando st.query_params (como um dicionário)
+    query_params = st.query_params
+
+    # Verificar se "code" existe nos query_params e se não está vazio
+    if query_params and "code" in query_params:
+        st.session_state["auth_code"] = query_params["code"][0]
+        token_result = acquire_access_token(app, st.session_state["auth_code"], scopes, redirect_uri)
+        
+        if token_result and "access_token" in token_result:
             user_data = fetch_user_data(token_result["access_token"])
             return user_data
         else:
-            st.error("Failed to acquire token. Please check your input and try again.")
+            st.error("Falha ao adquirir token. Verifique as credenciais e tente novamente.")
+    else:
+        # Exibir uma mensagem indicando o início da autenticação
+        st.write(f"Tentando autenticar com o email: {user_email}")
+        st.markdown(f'<meta http-equiv="refresh" content="0; url={auth_url}">', unsafe_allow_html=True)
 
 
 def login_ui():
-    st.title("Microsoft Authentication")
-    app = initialize_app()
-    user_data = authentication_process(app)
-    if user_data:
-        st.write("Welcome, ", user_data.get("displayName"))
-        st.session_state["authenticated"] = True
-        st.session_state["display_name"] = user_data.get("displayName")
-        st.rerun()
+    st.title("Autenticação Microsoft")
+
+    # Campos para email e senha
+    user_email = st.text_input("Azure Email", placeholder="Digite seu email Azure")
+    user_password = st.text_input("Senha", placeholder="Digite sua senha Azure", type="password")
+
+    if st.button("Login com Azure"):
+        if not user_email or not user_password:
+            st.warning("Por favor, insira o email e a senha.")
+        else:
+            app = initialize_app()
+            if app:
+                authentication_process(app, user_email, user_password)
+
+
+# Chamar a interface de login
+login_ui()
