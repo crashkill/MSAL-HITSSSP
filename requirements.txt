@@ -89,8 +89,6 @@ pyproject_hooks==1.1.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 pytz==2024.1
-pywin32==306
-pywin32-ctypes==0.2.2
 pyzmq==26.1.0
 rapidfuzz==3.9.5
 realtime==1.0.6
